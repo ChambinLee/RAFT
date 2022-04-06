@@ -166,12 +166,14 @@ class BasicEncoder(nn.Module):
 
 
     def forward(self, x):
-
+        '''
+            x可以是包含k张图像的列表，每张图的shape为(1,3,h,w)
+        '''
         # if input is list, combine batch dimension
         is_list = isinstance(x, tuple) or isinstance(x, list)
         if is_list:
-            batch_dim = x[0].shape[0]
-            x = torch.cat(x, dim=0)
+            batch_dim = x[0].shape[0]  # 列表中图像数量
+            x = torch.cat(x, dim=0)  # (k,3,h,w)
 
         x = self.conv1(x)
         x = self.norm1(x)
@@ -187,9 +189,9 @@ class BasicEncoder(nn.Module):
             x = self.dropout(x)
 
         if is_list:
-            x = torch.split(x, [batch_dim, batch_dim], dim=0)
+            x = torch.split(x, [batch_dim, batch_dim], dim=0)  # 将不同图片的特征图拆分成tuple
 
-        return x
+        return x  # x是tensor（k=1）或者tuple（k>1），shape都是(1,3,h//8,w//8)
 
 
 class SmallEncoder(nn.Module):

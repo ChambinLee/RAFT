@@ -55,13 +55,19 @@ def forward_interpolate(flow):
 
 
 def bilinear_sampler(img, coords, mode='bilinear', mask=False):
-    """ Wrapper for grid_sample, uses pixel coordinates """
-    H, W = img.shape[-2:]
-    xgrid, ygrid = coords.split([1,1], dim=-1)
-    xgrid = 2*xgrid/(W-1) - 1
-    ygrid = 2*ygrid/(H-1) - 1
+    """
+    Wrapper for grid_sample, uses pixel coordinates
+    img: 相关性查找表，(batch*h1*w1, dim, h2, w2)
+    coords: (bhw,2r+1,2r+1,2)，对于b张图像，总共bhw个coords，每个coords需要在表中查找 2r+1*2r+1 个值，每个值是uv两纬
+    """
+    H, W = img.shape[-2:]  # 图像大小
+    xgrid, ygrid = coords.split([1,1], dim=-1)  # 按最后一纬拆成两个(bhw,2r+1,2r+1,1)的矩阵
+    xgrid = 2*xgrid/(W-1) - 1  # 将x坐标归一化到-1~1，归一化中心为网格中心，和align_corners=True保持一致
+    ygrid = 2*ygrid/(H-1) - 1  # 将y坐标归一化到-1~1
 
-    grid = torch.cat([xgrid, ygrid], dim=-1)
+    grid = torch.cat([xgrid, ygrid], dim=-1)  # x和y分别归一化好之后，再拼接回去(bhw,2r+1,2r+1,2)
+    # 将img双线性插值到grid的大小，即将相关性查找表插值到要查找的coords大小。img: (bhw,1,h,w) -> (bhw,1,2r+1,2r+1)
+    # 参考https://www.freesion.com/article/4934317912/
     img = F.grid_sample(img, grid, align_corners=True)
 
     if mask:
@@ -80,3 +86,19 @@ def coords_grid(batch, ht, wd, device):
 def upflow8(flow, mode='bilinear'):
     new_size = (8 * flow.shape[2], 8 * flow.shape[3])
     return  8 * F.interpolate(flow, size=new_size, mode=mode, align_corners=True)
+
+
+def confidence(coords1, corr_fn):
+    """
+    coords1: 每一轮update后得到的新位置,coords1 = coords1 + delta_flow,(b,2,h//8,w//8)
+    corr: correlation volume 对象
+    """
+    # 首先进行一次lookup，得到新的coord1中每个特征与窗口邻域特征的相似度
+    corr = corr_fn(coords1)  # 每个特征值在四层特征金字塔上查找出4*(2r+1)**2个相似度出来，(b, 4*(2r+1)**2, h//8, w//8)
+    # 平均池化
+    b, _, h, w = coords1.shape
+    corr = corr.permute(0, 2, 3, 1)  # (b, h//8, w//8, 4*(2r+1)**2)
+    corr_mean = torch.mean(corr, -1)  # （b, h//8, w//8）
+    corr_mean = corr_mean.reshape(b, -1)  # 将tensor拉成（b, h//8 * w//8）,便于进行softmax
+    corr_norm = torch.softmax(corr_mean, -1)
+    return corr_norm.reshape(b, h, w)  # (b, h//8, w//8)，表示每个光流值的置信度
