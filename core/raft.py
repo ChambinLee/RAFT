@@ -148,7 +148,8 @@ class RAFT(nn.Module):
             corr = corr_fn(coords1)  # index correlation volume，(b,2,h//8,w//8)
 
             # 计算光流置信度
-            conf = confidence(coords1, corr_fn)
+            if self.args.confidence:
+                conf = confidence(coords1, corr_fn)
 
             flow = coords1 - coords0
             with autocast(enabled=self.args.mixed_precision):
@@ -158,17 +159,24 @@ class RAFT(nn.Module):
             coords1 = coords1 + delta_flow
 
             # step 6：上采样光流和confidence
-            # （此处为了训练网络，对每次迭代的光流都进行了上采样，实际 inference 时，只需要保留最后一次迭代后的上采样）
             if up_mask is None:  # up_mask: (b, 8*8*9, H//8, W//8), 即上采样权重
                 flow_up = upflow8(coords1 - coords0)
             else:
                 flow_up = self.upsample_flow(coords1 - coords0, up_mask)
-                conf_up = self.upsample_conf(conf, up_mask)  # (B, 8 * H, 8 * W)
+                if self.args.confidence:
+                    conf_up = self.upsample_conf(conf, up_mask)  # (B, 8 * H, 8 * W)
 
             flow_predictions.append(flow_up)
-            flow_confidence.append(conf_up)
-
+            if self.args.confidence:
+                flow_confidence.append(conf_up)
+        # test，只需要返回最后一层update模块输出的光流和置信度
         if test_mode:
-            return coords1 - coords0, flow_up
-            
-        return flow_predictions, flow_confidence
+            if self.args.confidence:
+                return coords1 - coords0, flow_up, conf_up
+            else:
+                return coords1 - coords0, flow_up
+        # train，需要输出每一层undate模块产生的光流和置信度用于loss计算
+        if self.args.confidence:
+            return flow_predictions, flow_confidence
+        else:
+            return flow_predictions

@@ -46,8 +46,34 @@ MAX_FLOW = 400
 SUM_FREQ = 100
 VAL_FREQ = 5000
 
+def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
+    """ Loss function defined over sequence of flow predictions """
 
-def sequence_loss(flow_preds, flow_gt, flow_conf, valid, gamma=0.8, max_flow=MAX_FLOW):
+    n_predictions = len(flow_preds)
+    flow_loss = 0.0
+
+    # exlude invalid pixels and extremely large diplacements
+    mag = torch.sum(flow_gt**2, dim=1).sqrt()
+    valid = (valid >= 0.5) & (mag < max_flow)
+
+    for i in range(n_predictions):
+        i_weight = gamma**(n_predictions - i - 1)
+        i_loss = (flow_preds[i] - flow_gt).abs()
+        flow_loss += i_weight * (valid[:, None] * i_loss).mean()
+
+    epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()
+    epe = epe.view(-1)[valid.view(-1)]
+
+    metrics = {
+        'epe': epe.mean().item(),
+        '1px': (epe < 1).float().mean().item(),
+        '3px': (epe < 3).float().mean().item(),
+        '5px': (epe < 5).float().mean().item(),
+    }
+
+    return flow_loss, metrics
+
+def sequence_loss_conf(flow_preds, flow_gt, flow_conf, valid, gamma=0.8, max_flow=MAX_FLOW):
     """ Loss function defined over sequence of flow predictions """
     B, H, W = flow_conf[0].shape
     n_predictions = len(flow_preds)    
@@ -189,9 +215,12 @@ def train(args):
                 image1 = (image1 + stdv * torch.randn(*image1.shape).cuda()).clamp(0.0, 255.0)
                 image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
 
-            flow_predictions, flow_confidence = model(image1, image2, iters=args.iters)
-
-            loss, metrics, flow_loss, conf_loss = sequence_loss(flow_predictions, flow, flow_confidence, valid, args.gamma)
+            if args.confidence:  # 进行置信度估计
+                flow_predictions, flow_confidence = model(image1, image2, iters=args.iters)
+                loss, metrics, flow_loss, conf_loss = sequence_loss_conf(flow_predictions, flow, flow_confidence, valid, args.gamma)
+            else:  # 原始网络，不进行置信度估计
+                flow_predictions = model(image1, image2, iters=args.iters)
+                loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)  # 梯度截断
@@ -248,6 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
     parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
+    parser.add_argument('--confidence', action='store_true', help='add confidence prediction')
 
     parser.add_argument('--iters', type=int, default=12)  # GPU循环次数
     parser.add_argument('--wdecay', type=float, default=.00005)

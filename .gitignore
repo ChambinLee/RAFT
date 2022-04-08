@@ -1,4 +1,6 @@
 demo-frames
+results
+*.pth
 *.pyc
 *.egg-info
 dist
