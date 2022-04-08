@@ -30,17 +30,14 @@ def load_image(imfile):
     return img[None].cuda()
 
 
-def viz(img, flow_list, conf_list, img_name):
+def viz(img, flo, img_name):
     img = img[0].permute(1,2,0).cpu().numpy()
-    # 将patch光流合并
-    flo = combine_flow(flow_list, conf_list)
-    flo = flo[0].permute(1,2,0).cpu().numpy()
-    
+
     # map flow to rgb image
     flo = flow_viz.flow_to_image(flo)
     img_flo = np.concatenate([img, flo], axis=0)
 
-    plt.imsave('results/{}'.format(img_name), img_flo[:, :, [0, 1, 2]]/255.0)
+    plt.imsave('results/new_model_downsample/{}'.format(img_name), img_flo[:, :, [0, 1, 2]] / 255.0)
 
 
 def demo(args):
@@ -70,6 +67,7 @@ def demo(args):
                 for j in range(len(down2_list)):
                     # 默认是有confidence的，就不加if了
                     patch1, patch2 = down1_list[i], down2_list[j]
+                    _, _, H_patch, W_patch = patch1.shape
                     # 将图像pad成8的整数倍，横纵都向上pad，因为提特征后分辨率缩小八倍
                     padder = InputPadder(patch1.shape)
                     patch1, patch2 = padder.pad(patch1, patch2)
@@ -77,9 +75,11 @@ def demo(args):
                     _, flow_up, conf_up = model(patch1, patch2, iters=20, test_mode=True)
                     flow_up_list.append(flow_up)
                     conf_up_list.append(conf_up)
+            # 合并光流patch
+            flow = combine_flow(flow_up_list, conf_up_list, H_patch, W_patch)
 
             img_name = str(Path(imfile1).name)
-            viz(image1, flow_up_list, conf_up_list, img_name)
+            viz(image1, flow, img_name)
 
 
 if __name__ == '__main__':

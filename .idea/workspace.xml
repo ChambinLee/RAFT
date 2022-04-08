@@ -44,7 +44,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.train_sliding_window">
+  <component name="RunManager" selected="Python.train_charis">
     <configuration name="demo" type="PythonConfigurationType" factoryName="Python">
       <module name="RAFT" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -81,7 +81,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test_sampling.py" />
-      <option name="PARAMETERS" value="--model=models/raft-things.pth --path=demo-frames" />
+      <option name="PARAMETERS" value="--model=checkpoints/100000_raft-chairs.pth --path=demo-frames" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -103,7 +103,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train.py" />
-      <option name="PARAMETERS" value="--name raft-chairs --stage chairs --validation chairs --gpus 0 1 2 3 --num_steps 100000 --batch_size 16 --lr 0.0004 --image_size 368 496 --wdecay 0.0001" />
+      <option name="PARAMETERS" value="--name raft-chairs --stage chairs --validation chairs --gpus 0 --confidence --num_steps 100000 --batch_size 1 --lr 0.0004 --image_size 368 496 --wdecay 0.0001" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -125,7 +125,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_sliding_window.py" />
-      <option name="PARAMETERS" value="--name raft-chairs --stage chairs --validation chairs --gpus 0 1 2 3 --num_steps 100000 --batch_size 2 --lr 0.0004 --image_size 368 496 --wdecay 0.0001" />
+      <option name="PARAMETERS" value="--name raft-chairs --stage chairs --validation chairs --gpus 0 1 2 3 --num_steps 100000 --batch_size 6 --lr 0.0004 --image_size 368 496 --wdecay 0.0001" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -168,7 +168,7 @@
       <updated>1648967967714</updated>
       <workItem from="1648967971059" duration="1194000" />
       <workItem from="1648974907195" duration="2252000" />
-      <workItem from="1648987016602" duration="111555000" />
+      <workItem from="1648987016602" duration="129529000" />
     </task>
     <servers />
   </component>
@@ -194,19 +194,14 @@
           <option name="timeStamp" value="103" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/test_sampling.py</url>
-          <line>35</line>
-          <option name="timeStamp" value="116" />
+          <url>file://$PROJECT_DIR$/train.py</url>
+          <line>51</line>
+          <option name="timeStamp" value="134" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/test_sampling.py</url>
-          <line>80</line>
-          <option name="timeStamp" value="119" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/core/utils/sampling.py</url>
-          <line>47</line>
-          <option name="timeStamp" value="121" />
+          <url>file://$PROJECT_DIR$/train.py</url>
+          <line>94</line>
+          <option name="timeStamp" value="138" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -214,8 +209,8 @@
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/RAFT$demo.coverage" NAME="demo Coverage Results" MODIFIED="1649129125062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/RAFT$demo__1_.coverage" NAME="demo (1) Coverage Results" MODIFIED="1649057986889" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/RAFT$test_sampling.coverage" NAME="test_sampling Coverage Results" MODIFIED="1649341472591" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/RAFT$train_charis.coverage" NAME="train_charis Coverage Results" MODIFIED="1649310051984" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/RAFT$train_sliding_window.coverage" NAME="train_sliding_window Coverage Results" MODIFIED="1649333731329" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$test_sampling.coverage" NAME="test_sampling Coverage Results" MODIFIED="1649403674116" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$train_charis.coverage" NAME="train_charis Coverage Results" MODIFIED="1649407839433" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$train_sliding_window.coverage" NAME="train_sliding_window Coverage Results" MODIFIED="1649384588224" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

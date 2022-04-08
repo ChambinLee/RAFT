@@ -98,7 +98,7 @@ def sequence_loss_conf(flow_preds, flow_gt, flow_conf, valid, gamma=0.8, max_flo
         conf = flow_conf[i].reshape(B, -1)  # 现在conf_gt和flow_conf都是（b, h*w）大小的了
         conf_norm = (torch.softmax(conf, -1))*(H*W)  # 防止归一化后，置信度太小所以乘个倍数
 
-        conf_loss += i_weight * (torch.norm(conf_gt_norm-conf_norm, p=2))  # 置信度误差为conf_gt-flow_conf的二范数
+        conf_loss += i_weight * (torch.norm(conf_gt_norm - conf_norm, p=2))  # 置信度误差为conf_gt-flow_conf的二范数
         ##########################################################
     epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()  # (b,h,w)
     epe = epe.view(-1)[valid.view(-1)]  # (b*h*w,)
@@ -291,8 +291,8 @@ if __name__ == '__main__':
     torch.manual_seed(1234)
     np.random.seed(1234)
 
-    # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4"
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
     if not os.path.isdir('checkpoints'):
         os.mkdir('checkpoints')
