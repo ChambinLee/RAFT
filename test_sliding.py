@@ -14,11 +14,13 @@ import torch.nn.functional as F
 from PIL import Image
 import cv2
 from tqdm import tqdm
+from pathlib import Path
 
 from raft import RAFT
 from utils import flow_viz, frame_utils
 from utils.utils import InputPadder
-from pathlib import Path
+from utils.sliding_window import create_windows_4, combine_windows_flow_4
+
 
 import traceback
 
@@ -41,6 +43,8 @@ def cut_margin(img, flo_pr, flo_gt):
     cut_H = (H_p - H)//2
     cut_W = (W_p - W)//2
     def cut(img, cut_H, cut_W):
+        if cut_H==0 and cut_W==0:
+            return img
         if cut_H==0:
             img = img[::, cut_W:-cut_W, ::]
         elif cut_W==0:
@@ -54,7 +58,6 @@ def cut_margin(img, flo_pr, flo_gt):
 
 def viz(img, flo_pr, flo_gt, img_name):
     img = img[0].permute(1,2,0).cpu().numpy()
-    flo_pr = torch.squeeze(flo_pr.permute(2,3,1,0)).cpu().numpy()
 
     # 裁剪margin
     img, flo_pr = cut_margin(img, flo_pr, flo_gt)
@@ -94,14 +97,17 @@ def demo(args):
             image2 = load_image(imfile2)
             flo_gt = frame_utils.read_gen(flofile)
 
-            # 将图像pad成8的整数倍，横纵都向上pad，因为提特征后分辨率缩小八倍
-            padder = InputPadder(image1.shape)
-            image1, image2 = padder.pad(image1, image2)
+            # 滑动窗口拆分图像
+            padder = InputPadder(F.interpolate(image1, scale_factor=0.5).shape)
+            image1_wids = create_windows_4(image1, padder)  # torch.Size([18, 3, 184, 248])
+            image2_wids = create_windows_4(image2, padder)
 
-            flow_low, flow_up = model(image1, image2, iters=20, test_mode=True)  # 调用RAFT类的forward函数
-
+            _, flow_predictions = model(image1_wids, image2_wids, iters=20, test_mode=True)
+            # 合并光流patch
+            flow_pred_combined = combine_windows_flow_4(flow_predictions, padder)
+            flow_pred_combined = torch.squeeze(flow_pred_combined[0].permute(2,3,1,0)).cpu().numpy()
             img_name = str(Path(imfile1).name)
-            viz(image1, flow_up, flo_gt, img_name)
+            viz(image1, flow_pred_combined, flo_gt, img_name)
 
 
 if __name__ == '__main__':

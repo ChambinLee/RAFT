@@ -64,6 +64,12 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]
 
+    with open("logs/train.log","a") as f:
+        s = "flow_l: " + str(round(flow_loss.item(), 3)).ljust(10) + \
+            "max_fl_pr: " + str(round(torch.max(flow_preds[-1]).item(), 3)).ljust(10) + \
+            "max_fl_gt_v: " + str(round(torch.max(flow_gt).item(), 3)) + "\n"
+        f.write(s)
+
     metrics = {
         'epe': epe.mean().item(),
         '1px': (epe < 1).float().mean().item(),
@@ -75,6 +81,7 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
 
 def sequence_loss_conf(flow_preds, flow_gt, flow_conf, valid, gamma=0.8, max_flow=MAX_FLOW):
     """ Loss function defined over sequence of flow predictions """
+    # valid 应该是用于稀疏光流的
     B, H, W = flow_conf[0].shape
     n_predictions = len(flow_preds)    
     flow_loss = 0.0
@@ -89,26 +96,35 @@ def sequence_loss_conf(flow_preds, flow_gt, flow_conf, valid, gamma=0.8, max_flo
         i_loss = (flow_preds[i] - flow_gt).abs()
         flow_loss += i_weight * (valid[:, None] * i_loss).mean()
         ################## 计算confidence loss ####################
-        flow_dist = torch.sum((flow_preds[i] - flow_gt).permute(0,2,3,1), dim=-1).reshape(B, -1)
-        flow_dist_norm = torch.softmax(flow_dist, -1)*(H*W)
+        flow_dist = torch.sum((flow_preds[i] - flow_gt).abs().permute(0,2,3,1), dim=-1)
+        flow_dist_norm = flow_dist/torch.sum(flow_dist)  # 都是正数
 
-        conf_gt = (H*W) - flow_dist_norm
-        conf_gt_norm = torch.softmax(conf_gt, -1)*(H*W)  # 防止归一化后，置信度太小所以乘个倍数
+        conf_gt = torch.max(flow_dist_norm)*2 - flow_dist_norm  # 依然都是正数
+        conf_gt_norm = conf_gt/torch.sum(conf_gt)
 
-        conf = flow_conf[i].reshape(B, -1)  # 现在conf_gt和flow_conf都是（b, h*w）大小的了
-        conf_norm = (torch.softmax(conf, -1))*(H*W)  # 防止归一化后，置信度太小所以乘个倍数
+        conf = flow_conf[i]  # 现在conf_gt和flow_conf都是（b, h*w）大小的了
+        conf_norm = conf/torch.sum(conf)
 
-        conf_loss += i_weight * (torch.norm(conf_gt_norm - conf_norm, p=2))  # 置信度误差为conf_gt-flow_conf的二范数
+        conf_loss += i_weight * \
+                     (torch.norm(valid[:, None] * (conf_gt_norm - conf_norm),  # 过滤可用光流
+                                 p=2)) * 5000  # 置信度误差为conf_gt-conf的二范数
         ##########################################################
     epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()  # (b,h,w)
     epe = epe.view(-1)[valid.view(-1)]  # (b*h*w,)
-
-    total_loss = flow_loss + conf_loss*0.05
+    with open("logs/train_downsampling.log","a") as f:
+        s = "flow_l: " + str(round(flow_loss.item(), 3)).ljust(10) + \
+            "conf_l: " + str(round(conf_loss.item(), 3)).ljust(10) + \
+            "avg_fl_pr: " + str(round(torch.mean(valid[:, None] * flow_preds[-1]).item(), 3)).ljust(10) + \
+            "max_fl_pr: " + str(round(torch.max(flow_preds[-1]).item(), 3)).ljust(10) + \
+            "avg_fl_gt_v: " + str(round(torch.mean(valid[:, None] * flow_gt).item(), 3)).ljust(10) + \
+            "max_fl_gt: " + str(round(torch.max(flow_gt).item(), 3)) + "\n"
+        f.write(s)
+    total_loss = flow_loss + conf_loss
 
     metrics = {
         'total_loss': total_loss.item(),
         'flow_loss': flow_loss.item(),
-        'conf_loss': conf_loss.item() * 0.05,
+        'conf_loss': conf_loss.item(),
         'epe': epe.mean().item(),  # 整体的epe loss，后面是不同错误程度的epe统计
         '1px': (epe < 1).float().mean().item(),
         '3px': (epe < 3).float().mean().item(),
@@ -215,7 +231,7 @@ def train(args):
                 image1 = (image1 + stdv * torch.randn(*image1.shape).cuda()).clamp(0.0, 255.0)
                 image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
 
-            if args.confidence:  # 进行置信度估计
+            if not args.noconfidence:  # 进行置信度估计
                 flow_predictions, flow_confidence = model(image1, image2, iters=args.iters)
                 loss, metrics, flow_loss, conf_loss = sequence_loss_conf(flow_predictions, flow, flow_confidence, valid, args.gamma)
             else:  # 原始网络，不进行置信度估计
@@ -277,7 +293,7 @@ if __name__ == '__main__':
     parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
     parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
-    parser.add_argument('--confidence', action='store_true', help='add confidence prediction')
+    parser.add_argument('--noconfidence', action='store_true', help='not add confidence prediction')
 
     parser.add_argument('--iters', type=int, default=12)  # GPU循环次数
     parser.add_argument('--wdecay', type=float, default=.00005)
@@ -292,7 +308,7 @@ if __name__ == '__main__':
     np.random.seed(1234)
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "5,6"
 
     if not os.path.isdir('checkpoints'):
         os.mkdir('checkpoints')

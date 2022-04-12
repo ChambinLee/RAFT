@@ -148,7 +148,7 @@ class RAFT(nn.Module):
             corr = corr_fn(coords1)  # index correlation volume，(b,2,h//8,w//8)
 
             # 计算光流置信度
-            if self.args.confidence:
+            if not self.args.noconfidence:
                 conf = confidence(coords1, corr_fn)
 
             flow = coords1 - coords0
@@ -163,20 +163,27 @@ class RAFT(nn.Module):
                 flow_up = upflow8(coords1 - coords0)
             else:
                 flow_up = self.upsample_flow(coords1 - coords0, up_mask)
-                if self.args.confidence:
+                if not self.args.noconfidence:
                     conf_up = self.upsample_conf(conf, up_mask)  # (B, 8 * H, 8 * W)
 
             flow_predictions.append(flow_up)
-            if self.args.confidence:
+            if not self.args.noconfidence:
                 flow_confidence.append(conf_up)
         # test，只需要返回最后一层update模块输出的光流和置信度
         if test_mode:
-            if self.args.confidence:
+            if not self.args.noconfidence:
                 return coords1 - coords0, flow_up, conf_up
             else:
                 return coords1 - coords0, flow_up
         # train，需要输出每一层undate模块产生的光流和置信度用于loss计算
-        if self.args.confidence:
+        if not self.args.noconfidence:
             return flow_predictions, flow_confidence
         else:
             return flow_predictions
+
+# from utils import flow_viz
+# import matplotlib.pyplot as plt
+# flow_down = coords1 - coords0
+# flow_down = flow_down[0].permute(1,2,0).detach().cpu().numpy()
+# flow_down_img = flow_viz.flow_to_image(flow_down)
+# plt.imsave('results/1.png', flow_down_img[:, :, [0, 1, 2]] / 255.0)

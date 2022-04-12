@@ -41,6 +41,7 @@ def downsampling_Equidistant_4(img):
 
 def combine_flow(flow_list, conf_list, H_patch, W_patch):
     '''
+        按照conf将光流合并
         默认只有一张图片输入
         因为推理前对图像进行了pad，所以需要使用H_patch, W_patch对光流进行裁剪
     '''

@@ -3,7 +3,7 @@ import numpy as np
 
 
 
-def combine_windows_flow_4(infer_flow_list):
+def combine_windows_flow_4(infer_flow_list,padder):
     '''
     # 将子图预测的flow合并成原图大小(k=4，总共9个窗口的情况）,使用最简单的方式，将重合位置求均值
     Args:
@@ -11,8 +11,16 @@ def combine_windows_flow_4(infer_flow_list):
     Returns:
         合并后的光流，tensor(B,2,H,W)
     '''
+    if not isinstance(infer_flow_list, list):
+        infer_flow_list = [infer_flow_list,]
     combined_flow_list = []
     for infer_flows in infer_flow_list:
+        # 删除图像边缘
+        pad_infer_flows_list = []
+        for i in range(infer_flows.shape[0]):
+            pad_infer_flows_list.append(padder.unpad(infer_flows[i]).unsqueeze(0))
+        infer_flows = torch.cat(pad_infer_flows_list, dim=0)
+
         B9, C, H, W = infer_flows.shape
         infer_flows = infer_flows.view(B9//9, 9, C, H, W).contiguous()
         # 窗口大小的一半，这是合并的基本单位
@@ -70,7 +78,7 @@ def combine_windows_flow_4(infer_flow_list):
         combined_flow_list.append(img_combined.permute(0,3,1,2).contiguous())
     return combined_flow_list
 
-def create_windows_4(imgs):
+def create_windows_4(imgs, padder):
     '''
     将图像按照2*2的方式裁剪成3*3的窗口，步长分别为长和宽的四分之一
     暂时没用unfold改写
@@ -88,6 +96,7 @@ def create_windows_4(imgs):
             start_col = j * W // 4  # start col of window
             end_col = (j+2) * W // 4  # end col of window
             window = imgs[::, ::, start_row:end_row, start_col:end_col]
+            window = padder.pad(window)[0]  # pad成8的整数倍
             window_list.append(window)
     img_wids = torch.cat(window_list, 0)  # 将所有patch叠在一起  (B*9,C,H,W)
     return img_wids

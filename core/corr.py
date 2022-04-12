@@ -24,7 +24,7 @@ class CorrBlock:
         
         self.corr_pyramid.append(corr)  # 整体相关表
         for i in range(self.num_levels-1):
-            # 特征金字塔中其他尺度查找表是在整体相关表最后两纬上做平均池化得到的
+            # 特征金字塔中其他尺度查找表是在整体相关表最后两纬上求平均得到的
             corr = F.avg_pool2d(corr, 2, stride=2)
             self.corr_pyramid.append(corr)
 
@@ -66,8 +66,8 @@ class CorrBlock:
 
         # 特征之间来了个完全的点乘  (b,h//8 * w//8,256)*(b,256,h//8 * w//8) = (b,h//8 * w//8,h//8 * w//8)
         corr = torch.matmul(fmap1.transpose(1,2), fmap2)
-        corr = corr.view(batch, ht, wd, 1, ht, wd)
-        return corr  / torch.sqrt(torch.tensor(dim).float())
+        corr = corr.view(batch, ht, wd, 1, ht, wd)  # 4D correlation volume
+        return corr / torch.sqrt(torch.tensor(dim).float())
 
 
 class AlternateCorrBlock:

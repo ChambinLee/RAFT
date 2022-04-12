@@ -83,7 +83,7 @@ def validate_chairs(model, iters=24):
         image1 = image1[None].cuda()
         image2 = image2[None].cuda()
 
-        _, flow_pr = model(image1, image2, iters=iters, test_mode=True)
+        _, flow_pr, flow_confidence = model(image1, image2, iters=iters, test_mode=True)
         epe = torch.sum((flow_pr[0].cpu() - flow_gt)**2, dim=0).sqrt()
         epe_list.append(epe.view(-1).numpy())
 
