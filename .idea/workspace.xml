@@ -26,25 +26,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">
-    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
-    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="WebServerToolWindowFactoryState" value="true" />
-    <property name="WebServerToolWindowPanel.toolwindow.highlight.mappings" value="true" />
-    <property name="WebServerToolWindowPanel.toolwindow.highlight.symlinks" value="true" />
-    <property name="WebServerToolWindowPanel.toolwindow.show.date" value="false" />
-    <property name="WebServerToolWindowPanel.toolwindow.show.permissions" value="false" />
-    <property name="WebServerToolWindowPanel.toolwindow.show.size" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "WebServerToolWindowFactoryState": "true",
+    "WebServerToolWindowPanel.toolwindow.highlight.mappings": "true",
+    "WebServerToolWindowPanel.toolwindow.highlight.symlinks": "true",
+    "WebServerToolWindowPanel.toolwindow.show.date": "false",
+    "WebServerToolWindowPanel.toolwindow.show.permissions": "false",
+    "WebServerToolWindowPanel.toolwindow.show.size": "false"
+  }
+}]]></component>
+  <component name="PyDebuggerOptionsProvider">
+    <option name="mySupportGeventDebugging" value="true" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/results" />
       <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/core/utils" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.test_sliding">
+  <component name="RunManager" selected="Python.test_sampling">
     <configuration name="demo" type="PythonConfigurationType" factoryName="Python">
       <module name="RAFT" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -59,7 +61,29 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/demo.py" />
-      <option name="PARAMETERS" value="--output_dir=results/allay_1_raw_model_whole_img --model=models/raft-chairs.pth --frames_path=demo-frames/alley_1_frames --flows_path=demo-frames/alley_1_flows" />
+      <option name="PARAMETERS" value="--output_dir=results/temple_2_raw_model_whole_img --model=models/raft-chairs.pth --frames_path=demo-frames/temple_2_frames --flows_path=demo-frames/temple_2_flows" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="frames_to_video" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="RAFT" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/results" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/results/frames_to_video.py" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -81,7 +105,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test_sampling.py" />
-      <option name="PARAMETERS" value="--output_dir=results/allay_nodownsample_model_chairs --model=models/raft-chairs.pth --frames_path=demo-frames/alley_1_frames --flows_path=demo-frames/alley_1_flows" />
+      <option name="PARAMETERS" value="--output_dir=results/temple_2_things_downsample --model=models/raft-things.pth --frames_path=demo-frames/temple_2_frames --flows_path=demo-frames/temple_2_flows" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -103,7 +127,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test_sliding.py" />
-      <option name="PARAMETERS" value="--output_dir=results/allay_1_sliding_model_sliding_img --model=models/sliding-raft-chairs.pth --frames_path=demo-frames/alley_1_frames --flows_path=demo-frames/alley_1_flows" />
+      <option name="PARAMETERS" value="--output_dir=results/temple_2_chairs_model_sliding_img --model=models/raft-chairs.pth --frames_path=demo-frames/temple_2_frames --flows_path=demo-frames/temple_2_flows" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -126,6 +150,28 @@
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train.py" />
       <option name="PARAMETERS" value="--name raft-chairs --stage chairs --validation chairs --gpus 0 1 --num_steps 100000 --batch_size 8 --lr 0.0004 --image_size 368 496 --wdecay 0.0001" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="train_downsample" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="RAFT" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_downsample.py" />
+      <option name="PARAMETERS" value="--name raft-chairs --stage chairs --validation chairs --gpus 0 --num_steps 100000 --batch_size 1 --lr 0.0004 --image_size 368 496 --wdecay 0.0001" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -177,11 +223,15 @@
       <item itemvalue="Python.train_sliding_window" />
       <item itemvalue="Python.test_sampling" />
       <item itemvalue="Python.demo" />
-      <item itemvalue="Python docs.Docutils Task in " />
       <item itemvalue="Python.test_sliding" />
+      <item itemvalue="Python.train_downsample" />
+      <item itemvalue="Python.frames_to_video" />
+      <item itemvalue="Python docs.Docutils Task in " />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.frames_to_video" />
+        <item itemvalue="Python.train_downsample" />
         <item itemvalue="Python.test_sliding" />
       </list>
     </recent_temporary>
@@ -198,7 +248,9 @@
       <workItem from="1648974907195" duration="2252000" />
       <workItem from="1648987016602" duration="150803000" />
       <workItem from="1649557920216" duration="31276000" />
-      <workItem from="1649740000395" duration="15565000" />
+      <workItem from="1649740000395" duration="19380000" />
+      <workItem from="1649759600171" duration="6317000" />
+      <workItem from="1650092445954" duration="2103000" />
     </task>
     <servers />
   </component>
@@ -216,15 +268,32 @@
           <line>228</line>
           <option name="timeStamp" value="192" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/demo.py</url>
+          <line>108</line>
+          <option name="timeStamp" value="208" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/test_sliding.py</url>
+          <line>114</line>
+          <option name="timeStamp" value="209" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/core/utils/sampling.py</url>
+          <line>48</line>
+          <option name="timeStamp" value="213" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/RAFT$demo.coverage" NAME="demo Coverage Results" MODIFIED="1649751794205" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
-    <SUITE FILE_PATH="coverage/RAFT$test_sliding.coverage" NAME="test_sliding Coverage Results" MODIFIED="1649754792476" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/RAFT$demo__1_.coverage" NAME="demo (1) Coverage Results" MODIFIED="1649057986889" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/RAFT$test_sampling.coverage" NAME="test_sampling Coverage Results" MODIFIED="1649750185102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/RAFT$train_charis.coverage" NAME="train_charis Coverage Results" MODIFIED="1649744873483" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/RAFT$train_sliding_window.coverage" NAME="train_sliding_window Coverage Results" MODIFIED="1649384588224" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$test_sliding.coverage" NAME="test_sliding Coverage Results" MODIFIED="1649757307350" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$train_charis.coverage" NAME="train_charis Coverage Results" MODIFIED="1649744873483" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$demo.coverage" NAME="demo Coverage Results" MODIFIED="1649757194522" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/RAFT$test_sampling.coverage" NAME="test_sampling Coverage Results" MODIFIED="1650094575449" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/RAFT$frames_to_video.coverage" NAME="frames_to_video Coverage Results" MODIFIED="1649818370499" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/results" />
+    <SUITE FILE_PATH="coverage/RAFT$train_downsample.coverage" NAME="train_downsample Coverage Results" MODIFIED="1649760875900" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

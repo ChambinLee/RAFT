@@ -16,8 +16,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
 from torch.utils.data import DataLoader
+
+from utils.utils import InputPadder
+from utils.sampling import downsampling_Equidistant_4, combine_flow
 from raft import RAFT
 import evaluate
 import datasets
@@ -46,6 +48,32 @@ MAX_FLOW = 400
 SUM_FREQ = 100
 VAL_FREQ = 5000
 
+try:
+    from torch.cuda.amp import GradScaler
+except:
+    # dummy GradScaler for PyTorch < 1.6
+    class GradScaler:
+        def __init__(self):
+            pass
+
+        def scale(self, loss):
+            return loss
+
+        def unscale_(self, optimizer):
+            pass
+
+        def step(self, optimizer):
+            optimizer.step()
+
+        def update(self):
+            pass
+
+# exclude extremly large displacements
+MAX_FLOW = 400
+SUM_FREQ = 100
+VAL_FREQ = 5000
+
+
 def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     """ Loss function defined over sequence of flow predictions """
 
@@ -53,16 +81,22 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
     flow_loss = 0.0
 
     # exlude invalid pixels and extremely large diplacements
-    mag = torch.sum(flow_gt**2, dim=1).sqrt()
+    mag = torch.sum(flow_gt ** 2, dim=1).sqrt()
     valid = (valid >= 0.5) & (mag < max_flow)
 
     for i in range(n_predictions):
-        i_weight = gamma**(n_predictions - i - 1)
+        i_weight = gamma ** (n_predictions - i - 1)
         i_loss = (flow_preds[i] - flow_gt).abs()
         flow_loss += i_weight * (valid[:, None] * i_loss).mean()
 
-    epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()
+    epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]
+
+    with open("logs/train.log", "a") as f:
+        s = "flow_l: " + str(round(flow_loss.item(), 3)).ljust(10) + \
+            "max_fl_pr: " + str(round(torch.max(flow_preds[-1]).item(), 3)).ljust(10) + \
+            "max_fl_gt_v: " + str(round(torch.max(flow_gt).item(), 3)) + "\n"
+        f.write(s)
 
     metrics = {
         'epe': epe.mean().item(),
@@ -73,42 +107,53 @@ def sequence_loss(flow_preds, flow_gt, valid, gamma=0.8, max_flow=MAX_FLOW):
 
     return flow_loss, metrics
 
+
 def sequence_loss_conf(flow_preds, flow_gt, flow_conf, valid, gamma=0.8, max_flow=MAX_FLOW):
     """ Loss function defined over sequence of flow predictions """
+    # valid 应该是用于稀疏光流的
     B, H, W = flow_conf[0].shape
-    n_predictions = len(flow_preds)    
+    n_predictions = len(flow_preds)
     flow_loss = 0.0
     conf_loss = 0.0
 
     # exlude invalid pixels and extremely large diplacements
-    mag = torch.sum(flow_gt**2, dim=1).sqrt()  # (b,h,w), gt光流长度
+    mag = torch.sum(flow_gt ** 2, dim=1).sqrt()  # (b,h,w), gt光流长度
     valid = (valid >= 0.5) & (mag < max_flow)  # 筛选可用光流，(b,h,w)，bool
 
     for i in range(n_predictions):
-        i_weight = gamma**(n_predictions - i - 1)
+        i_weight = gamma ** (n_predictions - i - 1)
         i_loss = (flow_preds[i] - flow_gt).abs()
         flow_loss += i_weight * (valid[:, None] * i_loss).mean()
         ################## 计算confidence loss ####################
-        flow_dist = torch.sum((flow_preds[i] - flow_gt).permute(0,2,3,1), dim=-1).reshape(B, -1)
-        flow_dist_norm = torch.softmax(flow_dist, -1)*(H*W)
+        flow_dist = torch.sum((flow_preds[i] - flow_gt).abs().permute(0, 2, 3, 1), dim=-1)
+        flow_dist_norm = flow_dist / torch.sum(flow_dist)  # 都是正数
 
-        conf_gt = (H*W) - flow_dist_norm
-        conf_gt_norm = torch.softmax(conf_gt, -1)*(H*W)  # 防止归一化后，置信度太小所以乘个倍数
+        conf_gt = torch.max(flow_dist_norm) * 2 - flow_dist_norm  # 依然都是正数
+        conf_gt_norm = conf_gt / torch.sum(conf_gt)
 
-        conf = flow_conf[i].reshape(B, -1)  # 现在conf_gt和flow_conf都是（b, h*w）大小的了
-        conf_norm = (torch.softmax(conf, -1))*(H*W)  # 防止归一化后，置信度太小所以乘个倍数
+        conf = flow_conf[i]  # 现在conf_gt和flow_conf都是（b, h*w）大小的了
+        conf_norm = conf / torch.sum(conf)
 
-        conf_loss += i_weight * (torch.norm(conf_gt_norm-conf_norm, p=2))  # 置信度误差为conf_gt-flow_conf的二范数
+        conf_loss += i_weight * \
+                     (torch.norm(valid[:, None] * (conf_gt_norm - conf_norm),  # 过滤可用光流
+                                 p=2)) * 5000  # 置信度误差为conf_gt-conf的二范数
         ##########################################################
-    epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()  # (b,h,w)
+    epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()  # (b,h,w)
     epe = epe.view(-1)[valid.view(-1)]  # (b*h*w,)
-
-    total_loss = flow_loss + conf_loss*0.05
+    with open("logs/train_downsampling.log", "a") as f:
+        s = "flow_l: " + str(round(flow_loss.item(), 3)).ljust(10) + \
+            "conf_l: " + str(round(conf_loss.item(), 3)).ljust(10) + \
+            "avg_fl_pr: " + str(round(torch.mean(valid[:, None] * flow_preds[-1]).item(), 3)).ljust(10) + \
+            "max_fl_pr: " + str(round(torch.max(flow_preds[-1]).item(), 3)).ljust(10) + \
+            "avg_fl_gt_v: " + str(round(torch.mean(valid[:, None] * flow_gt).item(), 3)).ljust(10) + \
+            "max_fl_gt: " + str(round(torch.max(flow_gt).item(), 3)) + "\n"
+        f.write(s)
+    total_loss = flow_loss + conf_loss
 
     metrics = {
         'total_loss': total_loss.item(),
         'flow_loss': flow_loss.item(),
-        'conf_loss': conf_loss.item() * 0.05,
+        'conf_loss': conf_loss.item(),
         'epe': epe.mean().item(),  # 整体的epe loss，后面是不同错误程度的epe统计
         '1px': (epe < 1).float().mean().item(),
         '3px': (epe < 3).float().mean().item(),
@@ -125,11 +170,11 @@ def fetch_optimizer(args, model):
     """ Create the optimizer and learning rate scheduler """
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wdecay, eps=args.epsilon)
 
-    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps+100,
-        pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
+    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, args.lr, args.num_steps + 100,
+                                              pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
 
     return optimizer, scheduler
-    
+
 
 class Logger:
     def __init__(self, model, scheduler):
@@ -140,10 +185,10 @@ class Logger:
         self.writer = None
 
     def _print_training_status(self):
-        metrics_data = [self.running_loss[k]/SUM_FREQ for k in self.running_loss.keys()]
-        training_str = "[{:6d}, {:10.7f}] ".format(self.total_steps+1, self.scheduler.get_last_lr()[0])
-        metrics_str = ("{:10.4f}, "*len(metrics_data)).format(*metrics_data)
-        
+        metrics_data = [self.running_loss[k] / SUM_FREQ for k in self.running_loss.keys()]
+        training_str = "[{:6d}, {:10.7f}] ".format(self.total_steps + 1, self.scheduler.get_last_lr()[0])
+        metrics_str = ("{:10.4f}, " * len(metrics_data)).format(*metrics_data)
+
         # print the training status
         print(training_str + metrics_str)
 
@@ -151,7 +196,7 @@ class Logger:
             self.writer = SummaryWriter()
 
         for k in self.running_loss:
-            self.writer.add_scalar(k, self.running_loss[k]/SUM_FREQ, self.total_steps)
+            self.writer.add_scalar(k, self.running_loss[k] / SUM_FREQ, self.total_steps)
             self.running_loss[k] = 0.0
 
     def push(self, metrics):
@@ -163,7 +208,7 @@ class Logger:
 
             self.running_loss[key] += metrics[key]
 
-        if self.total_steps % SUM_FREQ == SUM_FREQ-1:
+        if self.total_steps % SUM_FREQ == SUM_FREQ - 1:
             self._print_training_status()
             self.running_loss = {}
 
@@ -179,7 +224,6 @@ class Logger:
 
 
 def train(args):
-
     model = nn.DataParallel(RAFT(args), device_ids=args.gpus)
     print("Parameter Count: %d" % count_parameters(model))
 
@@ -208,23 +252,54 @@ def train(args):
 
         for i_batch, data_blob in enumerate(train_loader):
             optimizer.zero_grad()
-            image1, image2, flow, valid = [x.cuda() for x in data_blob]  # image, flow: (b,3,h,w), valid: (b,h,w)
+            image1, image2, flow_gt, valid = [x.cuda() for x in data_blob]  # image, flow: (b,3,h,w), valid: (b,h,w)
 
             if args.add_noise:  # 对图像加噪声，数据增强？
                 stdv = np.random.uniform(0.0, 5.0)
                 image1 = (image1 + stdv * torch.randn(*image1.shape).cuda()).clamp(0.0, 255.0)
                 image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
 
-            if args.confidence:  # 进行置信度估计
-                flow_predictions, flow_confidence = model(image1, image2, iters=args.iters)
-                loss, metrics, flow_loss, conf_loss = sequence_loss_conf(flow_predictions, flow, flow_confidence, valid, args.gamma)
-            else:  # 原始网络，不进行置信度估计
-                flow_predictions = model(image1, image2, iters=args.iters)
-                loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
-            scaler.scale(loss).backward()
+            # 拆分图像和光流
+            down1_list = downsampling_Equidistant_4(image1)
+            down2_list = downsampling_Equidistant_4(image2)
+            down_flow_gt_list = downsampling_Equidistant_4(flow_gt)
+
+            total_loss = 0.
+            for i in range(len(down1_list)):
+                flow_pr_list = []
+                flow_conf_list = []
+                H_patch, W_patch = 0, 0
+                for j in range(len(down2_list)):
+                    patch1, patch2 = down1_list[i], down2_list[j]
+                    _, _, H_patch, W_patch = patch1.shape
+                    # 将patch pad成8的整数倍，横纵都向上pad，因为提特征后分辨率缩小八倍
+                    padder = InputPadder(patch1.shape)
+                    patch1, patch2 = padder.pad(patch1, patch2)
+                    if not args.noconfidence:  # 进行置信度估计
+                        flow_pr, flow_conf = model(patch1, patch2, iters=args.iters)
+                        flow_pr, flow_conf = padder.unpad(flow_pr, flow_conf)  # 裁边
+                        flow_pr_list.append(flow_pr)  #　flow_pr 和 conf_pr本身就是12个tensor的list
+                        flow_conf_list.append(flow_conf)
+                    else:  # 原始网络，不进行置信度估计
+                        flow_pr = model(patch1, patch2, iters=args.iters)
+                        # todo
+                # 利用置信度合并光流patch并计算patch的loss
+                flow_gt_patch = down_flow_gt_list[i]
+                flow_pr_patch_list = []  # 12个合并后的flow
+                metrics = {}
+                for iter in range(args.iters):  # 4个flow_pr，每个里面包含12个flow
+                    four_flow_pr_list = [i[iter] for i in flow_pr_list]  # 四个patch在同一迭代过程中产生的flow
+                    four_conf_pr_list = [i[iter] for i in flow_conf_list]
+                    flow_pr_patch = combine_flow(four_flow_pr_list, four_conf_pr_list, H_patch, W_patch)
+                    flow_pr_patch_list.append(flow_pr_patch)
+                loss, metrics = sequence_loss(
+                    flow_pr_patch_list, flow_pr_patch, valid, args.gamma)  # 不对conf使用显式的监督信息
+            # 合并光流patch
+
+            scaler.scale(total_loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)  # 梯度截断
-            
+
             scaler.step(optimizer)
             scheduler.step()
             scaler.update()
@@ -232,7 +307,7 @@ def train(args):
             logger.push(metrics)
 
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
-                PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)
+                PATH = 'checkpoints/%d_%s.pth' % (total_steps + 1, args.name)
                 torch.save(model.state_dict(), PATH)
 
                 results = {}
@@ -245,11 +320,11 @@ def train(args):
                         results.update(evaluate.validate_kitti(model.module))
 
                 logger.write_dict(results)
-                
+
                 model.train()
                 if args.stage != 'chairs':
                     model.module.freeze_bn()
-            
+
             total_steps += 1
 
             if total_steps > args.num_steps:
@@ -266,7 +341,7 @@ def train(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', default='raft', help="name your experiment")
-    parser.add_argument('--stage', help="determines which dataset to use for training") 
+    parser.add_argument('--stage', help="determines which dataset to use for training")
     parser.add_argument('--restore_ckpt', help="restore checkpoint")
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--validation', type=str, nargs='+')  # 测试集位置，参数的值可以有多个，以列表形式存储
@@ -275,9 +350,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps', type=int, default=100000)
     parser.add_argument('--batch_size', type=int, default=2)
     parser.add_argument('--image_size', type=int, nargs='+', default=[384, 512])
-    parser.add_argument('--gpus', type=int, nargs='+', default=[0,1])
+    parser.add_argument('--gpus', type=int, nargs='+', default=[0, 1])
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
-    parser.add_argument('--confidence', action='store_true', help='add confidence prediction')
+    parser.add_argument('--noconfidence', action='store_true', help='not add confidence prediction')
 
     parser.add_argument('--iters', type=int, default=12)  # GPU循环次数
     parser.add_argument('--wdecay', type=float, default=.00005)
@@ -292,7 +367,7 @@ if __name__ == '__main__':
     np.random.seed(1234)
 
     # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "5,6"
 
     if not os.path.isdir('checkpoints'):
         os.mkdir('checkpoints')
