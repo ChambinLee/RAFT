@@ -304,11 +304,13 @@ if __name__ == '__main__':
     parser.add_argument('--add_noise', action='store_true')
     args = parser.parse_args()
 
+    # args.alternate_corr = True  # JIT的查找表
+
     torch.manual_seed(1234)
     np.random.seed(1234)
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5,6"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3,4"
 
     if not os.path.isdir('checkpoints'):
         os.mkdir('checkpoints')

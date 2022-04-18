@@ -24,7 +24,7 @@ import traceback
 
 DEVISE_IDS = [0]
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,4"
 
 def load_image(imfile):
     img = np.array(Image.open(imfile)).astype(np.uint8)
@@ -115,5 +115,6 @@ if __name__ == '__main__':
     parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
     args = parser.parse_args()
     args.noconfidence = True
+    args.alternate_corr = True  # JIT的查找表
 
     demo(args)
